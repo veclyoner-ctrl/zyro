@@ -53,28 +53,28 @@ export default function Home() {
   const [[slideIdx, direction], setSlide] = useState<[number, number]>([0, 1]);
   const [failedBannerIds, setFailedBannerIds] = useState<Record<string, boolean>>({});
 
-  const { data: heroBanners = [] } = useQuery({
+  const { data: heroBannersRaw = [], isLoading: loadingHero } = useQuery({
     queryKey: ['banners', 'hero'],
     queryFn: () => getBanners('hero'),
   });
 
-  const { data: promoBanners = [] } = useQuery({
+  const { data: promoBannersRaw = [] } = useQuery({
     queryKey: ['banners', 'promo'],
     queryFn: () => getBanners('promo'),
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: categoriesRaw = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   });
 
-  const { data: businesses = [] } = useQuery({
+  const { data: businessesRaw = [] } = useQuery({
     queryKey: ['businesses'],
     queryFn: getBusinesses,
   });
 
   const {
-    data: featuredProducts = [],
+    data: featuredProductsRaw = [],
     isLoading: loadingFeatured,
     isError: errorFeatured,
     refetch: refetchFeatured,
@@ -83,10 +83,17 @@ export default function Home() {
     queryFn: () => getFeaturedProducts(8),
   });
 
-  const { data: newArrivals = [], isLoading: loadingNew } = useQuery({
+  const { data: newArrivalsRaw = [], isLoading: loadingNew } = useQuery({
     queryKey: ['products', 'new-arrivals'],
     queryFn: () => getNewArrivals(8),
   });
+
+  const heroBanners = Array.isArray(heroBannersRaw) ? heroBannersRaw : [];
+  const promoBanners = Array.isArray(promoBannersRaw) ? promoBannersRaw : [];
+  const categories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
+  const businesses = Array.isArray(businessesRaw) ? businessesRaw : [];
+  const featuredProducts = Array.isArray(featuredProductsRaw) ? featuredProductsRaw : [];
+  const newArrivals = Array.isArray(newArrivalsRaw) ? newArrivalsRaw : [];
 
   useEffect(() => {
     heroBanners.forEach((banner) => {
@@ -106,7 +113,18 @@ export default function Home() {
   }, [heroBanners.length, slideIdx]);
 
   const safeSlideIdx = heroBanners.length > 0 ? slideIdx % heroBanners.length : 0;
-  const activeBanner = heroBanners[safeSlideIdx];
+  const activeBanner =
+    heroBanners[safeSlideIdx] ??
+    (!loadingHero
+      ? {
+          id: 'default-hero',
+          title: 'Curated Essentials Across Pakistan',
+          subtitle:
+            'Shop verified electronics, Sialkot leather, home lighting, and lifestyle collections with nationwide COD, JazzCash, and EasyPaisa.',
+          image_url: '/src/assets/images/hero_tech_banner_1795178618730.jpg',
+          link_url: '/products',
+        }
+      : undefined);
   const promo = promoBanners[0];
 
   const goPrev = () => {
@@ -213,7 +231,7 @@ export default function Home() {
                 <ChevronRight className="w-4 h-4" />
               </button>
               <div className="absolute z-30 bottom-3.5 left-6 sm:left-1/2 sm:-translate-x-1/2 flex items-center gap-2">
-                {heroBanners.map((b, i) => (
+                {(heroBanners ?? []).map((b, i) => (
                   <button
                     key={b.id}
                     type="button"
@@ -288,7 +306,7 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {categories.map((cat) => (
+          {(categories ?? []).map((cat) => (
             <Link
               key={cat.id}
               to={`/products?category=${cat.slug}`}
@@ -337,7 +355,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {featuredProducts.slice(0, 8).map((product) => (
+            {(featuredProducts ?? []).slice(0, 8).map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
@@ -394,7 +412,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {newArrivals.map((product) => (
+            {(newArrivals ?? []).map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
@@ -422,7 +440,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {businesses.slice(0, 6).map((biz) => (
+            {(businesses ?? []).slice(0, 6).map((biz) => (
               <Link
                 key={biz.id}
                 to={`/products?business=${encodeURIComponent(biz.slug)}`}

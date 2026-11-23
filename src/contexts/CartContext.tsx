@@ -67,11 +67,13 @@ async function fetchSupabaseCartItems(userId: string): Promise<CartItem[]> {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
-  if (error || !rawItems || rawItems.length === 0) return [];
+  if (error) throw new Error(error.message);
+  const safeRawItems = Array.isArray(rawItems) ? rawItems : [];
+  if (safeRawItems.length === 0) return [];
 
-  const productIds = Array.from(new Set(rawItems.map((i) => String(i.product_id))));
+  const productIds = Array.from(new Set(safeRawItems.map((i) => String(i.product_id))));
   const variantIds = Array.from(
-    new Set(rawItems.map((i) => i.variant_id).filter(Boolean).map(String))
+    new Set(safeRawItems.map((i) => i.variant_id).filter(Boolean).map(String))
   );
 
   const [productsRes, variantsRes, categoriesRes] = await Promise.all([
@@ -82,21 +84,26 @@ async function fetchSupabaseCartItems(userId: string): Promise<CartItem[]> {
     supabase.from('categories').select('id, name'),
   ]);
 
-  const catMap = new Map((categoriesRes.data ?? []).map((c) => [String(c.id), String(c.name)]));
+  const catList = Array.isArray(categoriesRes.data) ? categoriesRes.data : [];
+  const prodList = Array.isArray(productsRes.data) ? productsRes.data : [];
+  const varList = Array.isArray(variantsRes.data) ? variantsRes.data : [];
+
+  const catMap = new Map(catList.map((c) => [String(c.id), String(c.name)]));
   const prodMap = new Map(
-    (productsRes.data ?? []).map((p) => [
+    prodList.map((p) => [
       String(p.id),
       {
         ...(p as Product),
         price: Number(p.price),
         sale_price: p.sale_price !== null ? Number(p.sale_price) : null,
         stock_quantity: Number(p.stock_quantity),
+        images: Array.isArray(p.images) ? p.images : [],
         category_name: p.category_id ? catMap.get(String(p.category_id)) : undefined,
       } as Product,
     ])
   );
   const varMap = new Map(
-    (variantsRes.data ?? []).map((v) => [
+    varList.map((v) => [
       String(v.id),
       {
         ...(v as ProductVariant),
@@ -106,7 +113,7 @@ async function fetchSupabaseCartItems(userId: string): Promise<CartItem[]> {
     ])
   );
 
-  return rawItems
+  return safeRawItems
     .map((ci) => {
       const product = prodMap.get(String(ci.product_id));
       if (!product || product.is_deleted) return null;
@@ -137,6 +144,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     queryFn: getStoreSettings,
   });
 
+  const safeItems = useMemo(() => (Array.isArray(items) ? items : []), [items]);
+
   const refreshCart = useCallback(async () => {
     if (!user) {
       setItems([]);
@@ -149,7 +158,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const data = isSupabaseConfigured
         ? await fetchSupabaseCartItems(user.id)
         : await apiRequest<CartItem[]>('/api/cart');
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch {
       setItems([]);
     } finally {
@@ -162,14 +171,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [refreshCart]);
 
   const totals = useMemo(() => {
-    const lines = items
+    const lines = safeItems
       .filter((i) => i.product)
       .map((i) => ({
         unitPrice: getEffectivePrice(i.product!, i.variant?.price_modifier ?? 0),
         quantity: i.quantity,
       }));
     return calculateCartTotals(lines, settings, discountAmount);
-  }, [items, settings, discountAmount]);
+  }, [safeItems, settings, discountAmount]);
 
   useEffect(() => {
     if (!appliedCoupon || !user) return;

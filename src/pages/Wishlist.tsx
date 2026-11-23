@@ -11,6 +11,8 @@ export default function Wishlist() {
   const { items, isLoading, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   return (
     <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-8">
       <h1 className="font-display text-2xl md:text-3xl font-bold text-[#1A1A1A] mb-6">
@@ -23,7 +25,7 @@ export default function Wishlist() {
             <SkeletonCard key={i} />
           ))}
         </div>
-      ) : items.length === 0 ? (
+      ) : safeItems.length === 0 ? (
         <EmptyState
           icon={<Heart className="w-6 h-6" />}
           title="No items in your wishlist"
@@ -33,7 +35,7 @@ export default function Wishlist() {
         />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {items.map((item) => {
+          {(safeItems ?? []).map((item) => {
             const product = item.product!;
             const outOfStock =
               product.stock_quantity <= 0 || product.status === 'out_of_stock';

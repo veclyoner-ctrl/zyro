@@ -92,7 +92,7 @@ export default function AdminOrderDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white border border-[#E8E8E8] rounded-xl divide-y divide-[#E8E8E8]">
-            {(order.items ?? []).map((item) => (
+            {(Array.isArray(order.items) ? order.items : []).map((item) => (
               <div key={item.id} className="p-4 flex items-center gap-4">
                 <SafeImage
                   src={item.product_image}

@@ -87,7 +87,7 @@ export function SmartCatalogAdvisor({
       </form>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        {SAMPLE_PROMPTS[mode].map((prompt) => (
+        {(SAMPLE_PROMPTS[mode] ?? []).map((prompt) => (
           <button
             key={prompt}
             type="button"

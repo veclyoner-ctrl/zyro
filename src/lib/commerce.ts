@@ -258,13 +258,17 @@ export function evaluateCatalogDataQuality(
   businesses: Business[],
   lowStockThreshold = 5
 ): DataQualityReport {
-  const activeProducts = products.filter((p) => !p.is_deleted);
-  const categoryIds = new Set(categories.map((c) => c.id));
-  const businessIds = new Set(businesses.map((b) => b.id));
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeBusinesses = Array.isArray(businesses) ? businesses : [];
+
+  const activeProducts = safeProducts.filter((p) => !p.is_deleted);
+  const categoryIds = new Set(safeCategories.map((c) => c.id));
+  const businessIds = new Set(safeBusinesses.map((b) => b.id));
   const skuCounts = new Map<string, number>();
 
   for (const p of activeProducts) {
-    const skuKey = p.sku.trim().toUpperCase();
+    const skuKey = String(p.sku || '').trim().toUpperCase();
     skuCounts.set(skuKey, (skuCounts.get(skuKey) ?? 0) + 1);
   }
 

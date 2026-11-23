@@ -8,10 +8,11 @@ import { SkeletonTablePage } from '../components/common/LoadingSpinner';
 import { EmptyState, ErrorState } from '../components/common/EmptyState';
 
 export default function OrderHistory() {
-  const { data: orders = [], isLoading, isError, refetch } = useQuery({
+  const { data: ordersRaw = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
     queryFn: getUserOrders,
   });
+  const orders = Array.isArray(ordersRaw) ? ordersRaw : [];
 
   if (isLoading) {
     return (
@@ -57,7 +58,7 @@ export default function OrderHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E8E8] text-sm">
-              {orders.map((order) => (
+              {(orders ?? []).map((order) => (
                 <tr key={order.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3.5 px-4 font-mono text-xs font-semibold text-[#1A1A1A]">
                     {order.order_number}

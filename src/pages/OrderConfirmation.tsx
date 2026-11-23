@@ -44,7 +44,7 @@ export default function OrderConfirmation() {
         </p>
 
         <div className="text-left bg-[#F8F8F8] border border-[#E8E8E8] rounded-xl p-4 mb-6 space-y-3">
-          {(order.items ?? []).map((item) => (
+          {(Array.isArray(order.items) ? order.items : []).map((item) => (
             <div key={item.id} className="flex justify-between gap-4 text-sm">
               <span className="text-[#1A1A1A]">
                 {item.product_title} <span className="text-[#6B7280]">× {item.quantity}</span>

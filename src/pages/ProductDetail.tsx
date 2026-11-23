@@ -73,8 +73,14 @@ export default function ProductDetail() {
     enabled: Boolean(slug),
   });
 
-  const product = data?.product;
-  const related = data?.related ?? [];
+  const product = data?.product
+    ? {
+        ...data.product,
+        images: Array.isArray(data.product.images) ? data.product.images : [],
+        variants: Array.isArray(data.product.variants) ? data.product.variants : [],
+      }
+    : undefined;
+  const related = Array.isArray(data?.related) ? data.related : [];
 
   useEffect(() => {
     setSelectedImage(0);
@@ -113,13 +119,16 @@ export default function ProductDetail() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [lightboxOpen, product]);
 
-  const { data: reviews = [] } = useQuery({
+  const { data: reviewsRaw = [] } = useQuery({
     queryKey: ['reviews', product?.id],
     queryFn: () => getProductReviews(product!.id),
     enabled: Boolean(product?.id),
   });
+  const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
 
-  const { data: eligibility } = useQuery({
+  const {
+    data: eligibility = { canReview: false, hasPurchased: false, existingReview: null },
+  } = useQuery({
     queryKey: ['review-eligibility', product?.id, user?.id],
     queryFn: () => checkReviewEligibility(product!.id),
     enabled: Boolean(product?.id && user),
@@ -280,7 +289,7 @@ export default function ProductDetail() {
           </button>
           {product.images.length > 1 && (
             <div className="flex gap-3">
-              {product.images.map((img, i) => (
+              {(product.images ?? []).map((img, i) => (
                 <button
                   key={`${img}-${i}`}
                   type="button"
@@ -376,7 +385,7 @@ export default function ProductDetail() {
                   Select {product.variants[0].variant_name}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {product.variants.map((variant) => (
+                  {(product.variants ?? []).map((variant) => (
                     <button
                       key={variant.id}
                       type="button"
@@ -661,7 +670,7 @@ export default function ProductDetail() {
             ) : (
               <>
                 <div className="divide-y divide-[#E8E8E8]">
-                  {paginatedReviews.map((rev) => (
+                  {(paginatedReviews ?? []).map((rev) => (
                     <div key={rev.id} className="py-4 first:pt-0 last:pb-0">
                       <div className="flex items-center justify-between gap-4 mb-1.5">
                         <span className="text-sm font-semibold text-[#1A1A1A]">
@@ -692,7 +701,7 @@ export default function ProductDetail() {
             Related Products
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {related.map((item) => (
+            {(related ?? []).map((item) => (
               <ProductCard key={item.id} product={item} />
             ))}
           </div>
@@ -757,7 +766,7 @@ export default function ProductDetail() {
 
             {product.images.length > 1 && (
               <div className="flex items-center justify-center gap-2 p-3 bg-white border-t border-[#E8E8E8]">
-                {product.images.map((img, i) => (
+                {(product.images ?? []).map((img, i) => (
                   <button
                     key={`lb-${img}-${i}`}
                     type="button"

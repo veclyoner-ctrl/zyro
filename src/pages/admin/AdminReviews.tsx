@@ -14,10 +14,11 @@ export default function AdminReviews() {
   const [productFilter, setProductFilter] = useState('');
   const [ratingFilter, setRatingFilter] = useState('');
 
-  const { data: reviews = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawReviews = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'reviews'],
     queryFn: adminService.getReviews,
   });
+  const reviews = Array.isArray(rawReviews) ? rawReviews : [];
 
   const productOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -70,7 +71,7 @@ export default function AdminReviews() {
           className="h-10 px-3 rounded-lg border border-[#E8E8E8] bg-white text-sm max-w-xs"
         >
           <option value="">All Products</option>
-          {productOptions.map((p) => (
+          {(productOptions ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               {p.title}
             </option>
@@ -127,7 +128,7 @@ export default function AdminReviews() {
                 </td>
               </tr>
             ) : (
-              filtered.map((r) => (
+              (filtered ?? []).map((r) => (
                 <tr key={r.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3 px-4 font-medium text-[#1A1A1A] max-w-[200px] truncate">
                     {r.product_title || r.product_id}

@@ -80,7 +80,7 @@ export function CartDrawer() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-[#E8E8E8]">
-          {items.length === 0 ? (
+          {!Array.isArray(items) || items.length === 0 ? (
             <div className="py-16 text-center">
               <div className="w-12 h-12 rounded-full bg-[#FFF0EA] text-[#FF6B35] flex items-center justify-center mx-auto mb-3">
                 <ShoppingBag className="w-6 h-6" />
@@ -98,7 +98,7 @@ export function CartDrawer() {
               </Link>
             </div>
           ) : (
-            items.map((item) => {
+            (items ?? []).map((item) => {
               const product = item.product!;
               const unitPrice = getEffectivePrice(product, item.variant?.price_modifier ?? 0);
               return (

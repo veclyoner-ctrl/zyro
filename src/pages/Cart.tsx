@@ -27,9 +27,11 @@ export default function Cart() {
   const [couponError, setCouponError] = useState('');
   const [applying, setApplying] = useState(false);
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   if (isLoading) return <SkeletonCartPage />;
 
-  if (items.length === 0) {
+  if (safeItems.length === 0) {
     return (
       <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-16">
         <EmptyState
@@ -67,7 +69,7 @@ export default function Cart() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Items */}
         <div className="lg:col-span-8 bg-white border border-[#E8E8E8] rounded-xl divide-y divide-[#E8E8E8]">
-          {items.map((item) => {
+          {(safeItems ?? []).map((item) => {
             const product = item.product!;
             const unitPrice = getEffectivePrice(product, item.variant?.price_modifier ?? 0);
             return (

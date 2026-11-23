@@ -30,15 +30,20 @@ export default function AdminReports() {
     queryFn: () => adminService.getReports(fromDate || undefined, toDate || undefined),
   });
 
+  const orders = Array.isArray(data?.orders) ? data.orders : [];
+  const revenueSeries = Array.isArray(data?.revenueSeries) ? data.revenueSeries : [];
+  const statusBreakdown = Array.isArray(data?.statusBreakdown) ? data.statusBreakdown : [];
+  const bestSellers = Array.isArray(data?.bestSellers) ? data.bestSellers : [];
+
   function exportCsv() {
-    if (!data?.orders) return;
+    if (orders.length === 0) return;
     const rows = [
       ['Order Number', 'Date', 'Customer', 'Method', 'Status', 'Total PKR'].join(','),
-      ...data.orders.map((o) =>
+      ...orders.map((o) =>
         [
           o.order_number,
-          o.created_at.slice(0, 10),
-          `"${(o.customer_name || o.shipping_address.full_name).replace(/"/g, '""')}"`,
+          (o.created_at ?? '').slice(0, 10),
+          `"${(o.customer_name || o.shipping_address?.full_name || 'Customer').replace(/"/g, '""')}"`,
           o.payment_method,
           o.status,
           o.total,
@@ -101,7 +106,7 @@ export default function AdminReports() {
           </h2>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.revenueSeries}>
+              <LineChart data={revenueSeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E8" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6B7280' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} />
@@ -120,7 +125,7 @@ export default function AdminReports() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={data.statusBreakdown}
+                  data={statusBreakdown}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -128,7 +133,7 @@ export default function AdminReports() {
                   outerRadius={80}
                   label
                 >
-                  {data.statusBreakdown.map((entry, idx) => (
+                  {statusBreakdown.map((entry, idx) => (
                     <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
                   ))}
                 </Pie>
@@ -155,7 +160,7 @@ export default function AdminReports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E8E8] text-sm">
-              {data.bestSellers.map((row) => (
+              {bestSellers.map((row) => (
                 <tr key={row.product_title}>
                   <td className="py-3 px-4 font-medium text-[#1A1A1A]">{row.product_title}</td>
                   <td className="py-3 px-4 tabular-nums">{row.units}</td>

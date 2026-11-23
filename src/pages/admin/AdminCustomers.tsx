@@ -16,16 +16,20 @@ export default function AdminCustomers() {
   const [updating, setUpdating] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
-  const { data: customers = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawCustomers = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'customers'],
     queryFn: adminService.getCustomers,
   });
+  const customers = Array.isArray(rawCustomers) ? rawCustomers : [];
 
   const { data: detail, isLoading: loadingDetail } = useQuery({
     queryKey: ['admin', 'customer', selectedCustomerId],
     queryFn: () => adminService.getCustomerDetail(selectedCustomerId!),
     enabled: Boolean(selectedCustomerId),
   });
+
+  const detailAddresses = Array.isArray(detail?.addresses) ? detail.addresses : [];
+  const detailOrders = Array.isArray(detail?.orders) ? detail.orders : [];
 
   useEffect(() => {
     if (!selectedCustomerId) return;
@@ -82,7 +86,7 @@ export default function AdminCustomers() {
                 </td>
               </tr>
             ) : (
-              customers.map((c) => (
+              (customers ?? []).map((c) => (
                 <tr key={c.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3 px-4">
                     <p className="font-semibold text-[#1A1A1A]">{c.full_name}</p>
@@ -194,18 +198,18 @@ export default function AdminCustomers() {
                   <div className="p-3.5 rounded-lg bg-[#F8F8F8] border border-[#E8E8E8]">
                     <p className="text-xs text-[#6B7280]">Saved Addresses</p>
                     <p className="font-display text-lg font-bold text-[#1A1A1A] tabular-nums">
-                      {detail.addresses.length}
+                      {detailAddresses.length}
                     </p>
                   </div>
                 </div>
 
-                {detail.addresses.length > 0 && (
+                {detailAddresses.length > 0 && (
                   <div>
                     <h3 className="font-display text-sm font-semibold text-[#1A1A1A] mb-2">
                       Saved Addresses
                     </h3>
                     <div className="grid sm:grid-cols-2 gap-3">
-                      {detail.addresses.map((addr) => (
+                      {detailAddresses.map((addr) => (
                         <div
                           key={addr.id}
                           className="p-3 rounded-lg border border-[#E8E8E8] text-xs space-y-1"
@@ -229,7 +233,7 @@ export default function AdminCustomers() {
                   <h3 className="font-display text-sm font-semibold text-[#1A1A1A] mb-2">
                     Order History
                   </h3>
-                  {detail.orders.length === 0 ? (
+                  {detailOrders.length === 0 ? (
                     <p className="text-xs text-[#6B7280] py-3">No orders placed yet.</p>
                   ) : (
                     <div className="border border-[#E8E8E8] rounded-lg overflow-x-auto">
@@ -244,7 +248,7 @@ export default function AdminCustomers() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E8E8E8]">
-                          {detail.orders.map((o) => (
+                          {detailOrders.map((o) => (
                             <tr key={o.id}>
                               <td className="py-2.5 px-3 font-mono font-semibold">{o.order_number}</td>
                               <td className="py-2.5 px-3 text-[#6B7280]">{formatDate(o.created_at)}</td>

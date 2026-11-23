@@ -47,10 +47,12 @@ export default function Checkout() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  const { data: savedAddresses = [] } = useQuery({
+  const { data: savedAddressesRaw = [] } = useQuery({
     queryKey: ['addresses'],
     queryFn: getAddresses,
   });
+  const savedAddresses = Array.isArray(savedAddressesRaw) ? savedAddressesRaw : [];
+  const safeItems = Array.isArray(items) ? items : [];
 
   useEffect(() => {
     if (!user) return;
@@ -79,7 +81,7 @@ export default function Checkout() {
     }
   }, [savedAddresses, addressLine1]);
 
-  if (items.length === 0) {
+  if (safeItems.length === 0) {
     return (
       <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-16">
         <EmptyState
@@ -216,7 +218,7 @@ export default function Checkout() {
                     className="h-9 px-3 rounded-lg border border-[#E8E8E8] text-xs font-medium bg-[#F8F8F8]"
                   >
                     <option value="">Choose saved address...</option>
-                    {savedAddresses.map((addr) => (
+                    {(savedAddresses ?? []).map((addr) => (
                       <option key={addr.id} value={addr.id}>
                         {addr.address_line1}, {addr.city}
                       </option>
@@ -515,7 +517,7 @@ export default function Checkout() {
               </div>
 
               <div className="divide-y divide-[#E8E8E8] border border-[#E8E8E8] rounded-xl">
-                {items.map((item) => {
+                {(safeItems ?? []).map((item) => {
                   const p = item.product!;
                   const price = getEffectivePrice(p, item.variant?.price_modifier ?? 0);
                   return (

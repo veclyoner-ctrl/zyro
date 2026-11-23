@@ -22,7 +22,7 @@ export interface ProductListResponse {
 }
 
 async function hydrateSupabaseProducts(rawProducts: Array<Record<string, unknown>>): Promise<Product[]> {
-  if (rawProducts.length === 0) return [];
+  if (!Array.isArray(rawProducts) || rawProducts.length === 0) return [];
   const productIds = rawProducts.map((p) => String(p.id));
 
   const [catsRes, bizRes, varsRes, revRes] = await Promise.all([
@@ -32,14 +32,19 @@ async function hydrateSupabaseProducts(rawProducts: Array<Record<string, unknown
     supabase.from('reviews').select('product_id, rating, is_approved').in('product_id', productIds),
   ]);
 
+  const safeCats = Array.isArray(catsRes.data) ? catsRes.data : [];
+  const safeBiz = Array.isArray(bizRes.data) ? bizRes.data : [];
+  const safeVars = Array.isArray(varsRes.data) ? varsRes.data : [];
+  const safeRevs = Array.isArray(revRes.data) ? revRes.data : [];
+
   const catMap = new Map(
-    (catsRes.data ?? []).map((c) => [String(c.id), { name: String(c.name), slug: String(c.slug) }])
+    safeCats.map((c) => [String(c.id), { name: String(c.name), slug: String(c.slug) }])
   );
   const bizMap = new Map(
-    (bizRes.data ?? []).map((b) => [String(b.id), String(b.name)])
+    safeBiz.map((b) => [String(b.id), String(b.name)])
   );
   const varsByProduct = new Map<string, ProductVariant[]>();
-  for (const v of varsRes.data ?? []) {
+  for (const v of safeVars) {
     const pid = String(v.product_id);
     const list = varsByProduct.get(pid) ?? [];
     list.push({
@@ -51,7 +56,7 @@ async function hydrateSupabaseProducts(rawProducts: Array<Record<string, unknown
   }
 
   const ratingsByProduct = new Map<string, { sum: number; count: number }>();
-  for (const r of (revRes.data ?? []) as Array<Pick<Review, 'product_id' | 'rating' | 'is_approved'>>) {
+  for (const r of safeRevs as Array<Pick<Review, 'product_id' | 'rating' | 'is_approved'>>) {
     if (!r.is_approved) continue;
     const pid = String(r.product_id);
     const curr = ratingsByProduct.get(pid) ?? { sum: 0, count: 0 };
@@ -100,17 +105,23 @@ export async function getProducts(
       supabase.from('businesses').select('*'),
     ]);
     if (prodsRes.error) throw new Error(prodsRes.error.message);
+    if (catsRes.error) throw new Error(catsRes.error.message);
+    if (bizRes.error) throw new Error(bizRes.error.message);
 
-    let list = await hydrateSupabaseProducts((prodsRes.data ?? []) as Array<Record<string, unknown>>);
+    const safeProds = Array.isArray(prodsRes.data) ? prodsRes.data : [];
+    const safeCats = Array.isArray(catsRes.data) ? catsRes.data : [];
+    const safeBiz = Array.isArray(bizRes.data) ? bizRes.data : [];
+
+    let list = await hydrateSupabaseProducts(safeProds as Array<Record<string, unknown>>);
 
     if (filters.category) {
-      const catMatch = (catsRes.data ?? []).find((c) => c.slug === filters.category || c.id === filters.category);
+      const catMatch = safeCats.find((c) => c.slug === filters.category || c.id === filters.category);
       list = catMatch
         ? list.filter((p) => p.category_id === catMatch.id)
         : [];
     }
     if (filters.business) {
-      const bizMatch = (bizRes.data ?? []).find((b) => b.slug === filters.business || b.id === filters.business);
+      const bizMatch = safeBiz.find((b) => b.slug === filters.business || b.id === filters.business);
       list = bizMatch
         ? list.filter((p) => p.business_id === bizMatch.id)
         : [];
@@ -168,7 +179,14 @@ export async function getProducts(
   if (filters.inStockOnly) params.set('inStockOnly', 'true');
   if (filters.sort) params.set('sort', filters.sort);
 
-  return apiRequest<ProductListResponse>(`/api/products?${params.toString()}`);
+  const res = await apiRequest<ProductListResponse>(`/api/products?${params.toString()}`);
+  return {
+    items: Array.isArray(res?.items) ? res.items : [],
+    total: Number(res?.total ?? 0),
+    page: Number(res?.page ?? page),
+    perPage: Number(res?.perPage ?? perPage),
+    totalPages: Math.max(1, Number(res?.totalPages ?? 1)),
+  };
 }
 
 export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
@@ -182,25 +200,25 @@ export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw new Error(error.message);
-    return hydrateSupabaseProducts((data ?? []) as Array<Record<string, unknown>>);
+    return hydrateSupabaseProducts((Array.isArray(data) ? data : []) as Array<Record<string, unknown>>);
   }
 
   const res = await apiRequest<ProductListResponse>(
     `/api/products?featured=true&perPage=${limit}`
   );
-  return res.items;
+  return Array.isArray(res?.items) ? res.items : [];
 }
 
 export async function getNewArrivals(limit = 8): Promise<Product[]> {
   if (isSupabaseConfigured) {
     const res = await getProducts({ sort: 'newest' }, 1, limit);
-    return res.items;
+    return Array.isArray(res?.items) ? res.items : [];
   }
 
   const res = await apiRequest<ProductListResponse>(
     `/api/products?sort=newest&perPage=${limit}`
   );
-  return res.items;
+  return Array.isArray(res?.items) ? res.items : [];
 }
 
 export async function getProductBySlug(
@@ -227,14 +245,25 @@ export async function getProductBySlug(
     if (product.category_id) {
       relatedQuery = relatedQuery.eq('category_id', product.category_id);
     }
-    const { data: relRows } = await relatedQuery;
-    const related = await hydrateSupabaseProducts((relRows ?? []) as Array<Record<string, unknown>>);
+    const { data: relRows, error: relErr } = await relatedQuery;
+    if (relErr) throw new Error(relErr.message);
+    const related = await hydrateSupabaseProducts(
+      (Array.isArray(relRows) ? relRows : []) as Array<Record<string, unknown>>
+    );
     return { product, related };
   }
 
-  return apiRequest<{ product: Product; related: Product[] }>(
+  const res = await apiRequest<{ product: Product; related: Product[] }>(
     `/api/products/${encodeURIComponent(slug)}`
   );
+  return {
+    product: {
+      ...res.product,
+      images: Array.isArray(res?.product?.images) ? res.product.images : [],
+      variants: Array.isArray(res?.product?.variants) ? res.product.variants : [],
+    },
+    related: Array.isArray(res?.related) ? res.related : [],
+  };
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -252,19 +281,23 @@ export async function getCategories(): Promise<Category[]> {
         .neq('status', 'draft'),
     ]);
     if (catsRes.error) throw new Error(catsRes.error.message);
+    if (prodsRes.error) throw new Error(prodsRes.error.message);
     const counts = new Map<string, number>();
-    for (const p of prodsRes.data ?? []) {
+    const safeProds = Array.isArray(prodsRes.data) ? prodsRes.data : [];
+    for (const p of safeProds) {
       if (p.category_id) {
         counts.set(String(p.category_id), (counts.get(String(p.category_id)) ?? 0) + 1);
       }
     }
-    return ((catsRes.data ?? []) as Category[]).map((c) => ({
+    const safeCats = Array.isArray(catsRes.data) ? (catsRes.data as Category[]) : [];
+    return safeCats.map((c) => ({
       ...c,
       product_count: counts.get(c.id) ?? 0,
     }));
   }
 
-  return apiRequest<Category[]>('/api/categories');
+  const data = await apiRequest<Category[]>('/api/categories');
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getBusinesses(): Promise<Business[]> {
@@ -283,21 +316,27 @@ export async function getBusinesses(): Promise<Business[]> {
         .neq('status', 'draft'),
     ]);
     if (bizRes.error) throw new Error(bizRes.error.message);
-    const catMap = new Map((catsRes.data ?? []).map((c) => [String(c.id), String(c.name)]));
+    if (catsRes.error) throw new Error(catsRes.error.message);
+    if (prodsRes.error) throw new Error(prodsRes.error.message);
+    const safeCats = Array.isArray(catsRes.data) ? catsRes.data : [];
+    const safeProds = Array.isArray(prodsRes.data) ? prodsRes.data : [];
+    const safeBiz = Array.isArray(bizRes.data) ? (bizRes.data as Business[]) : [];
+    const catMap = new Map(safeCats.map((c) => [String(c.id), String(c.name)]));
     const counts = new Map<string, number>();
-    for (const p of prodsRes.data ?? []) {
+    for (const p of safeProds) {
       if (p.business_id) {
         counts.set(String(p.business_id), (counts.get(String(p.business_id)) ?? 0) + 1);
       }
     }
-    return ((bizRes.data ?? []) as Business[]).map((b) => ({
+    return safeBiz.map((b) => ({
       ...b,
       category_name: b.category_id ? catMap.get(b.category_id) : undefined,
       product_count: counts.get(b.id) ?? 0,
     }));
   }
 
-  return apiRequest<Business[]>('/api/businesses');
+  const data = await apiRequest<Business[]>('/api/businesses');
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getBanners(type?: 'hero' | 'promo'): Promise<Banner[]> {
@@ -310,11 +349,12 @@ export async function getBanners(type?: 'hero' | 'promo'): Promise<Banner[]> {
     if (type) query = query.eq('type', type);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return (data ?? []) as Banner[];
+    return Array.isArray(data) ? (data as Banner[]) : [];
   }
 
   const qs = type ? `?type=${type}` : '';
-  return apiRequest<Banner[]>(`/api/banners${qs}`);
+  const data = await apiRequest<Banner[]>(`/api/banners${qs}`);
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getStoreSettings(): Promise<StoreSettings> {

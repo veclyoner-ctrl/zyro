@@ -29,9 +29,10 @@ export default function AdminDataQuality() {
     queryFn: adminService.getDataQuality,
   });
 
+  const issues = Array.isArray(data?.issues) ? data.issues : [];
+
   const filteredIssues = useMemo(() => {
-    if (!data) return [];
-    return data.issues.filter((issue) => {
+    return issues.filter((issue) => {
       if (severityFilter !== 'all' && issue.severity !== severityFilter) return false;
       if (search.trim()) {
         const q = search.trim().toLowerCase();
@@ -45,7 +46,7 @@ export default function AdminDataQuality() {
       }
       return true;
     });
-  }, [data, severityFilter, search]);
+  }, [issues, severityFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredIssues.length / ISSUES_PER_PAGE));
   const safePage = Math.min(page, totalPages);
@@ -175,7 +176,7 @@ export default function AdminDataQuality() {
         <div className="flex flex-wrap items-center gap-2">
           {(
             [
-              { key: 'all', label: `All (${data.issues.length})` },
+              { key: 'all', label: `All (${issues.length})` },
               { key: 'critical', label: `Critical (${summary.criticalCount})` },
               { key: 'warning', label: `Warnings (${summary.warningCount})` },
               { key: 'info', label: `Info (${summary.infoCount})` },
@@ -236,7 +237,7 @@ export default function AdminDataQuality() {
                 </td>
               </tr>
             ) : (
-              paginatedIssues.map((issue) => (
+              (paginatedIssues ?? []).map((issue) => (
                 <tr key={issue.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3 px-4">
                     <span

@@ -28,15 +28,18 @@ export default function AdminProducts() {
   const [stockDraft, setStockDraft] = useState('');
   const [savingStock, setSavingStock] = useState(false);
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: rawProducts = [], isLoading } = useQuery({
     queryKey: ['admin', 'products'],
     queryFn: adminService.getProducts,
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: rawCategories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   });
+
+  const products = Array.isArray(rawProducts) ? rawProducts : [];
+  const categories = Array.isArray(rawCategories) ? rawCategories : [];
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -82,9 +85,10 @@ export default function AdminProducts() {
     try {
       const targetProduct = products.find((p) => p.id === deleteTarget.id);
       await adminService.deleteProduct(deleteTarget.id);
-      if (targetProduct?.images?.length) {
+      const targetImages = Array.isArray(targetProduct?.images) ? targetProduct.images : [];
+      if (targetImages.length > 0) {
         await Promise.allSettled(
-          targetProduct.images.map((img) => deleteAsset(img, 'product-images'))
+          targetImages.map((img) => deleteAsset(img, 'product-images'))
         );
       }
       toast.success('Product archived');
@@ -159,7 +163,7 @@ export default function AdminProducts() {
           className="h-10 px-3 rounded-lg border border-[#E8E8E8] bg-white text-sm"
         >
           <option value="">All Categories</option>
-          {categories.map((c) => (
+          {(categories ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name} ({c.product_count ?? 0})
             </option>
@@ -234,7 +238,9 @@ export default function AdminProducts() {
                 </td>
               </tr>
             ) : (
-              paginated.map((p) => (
+              (paginated ?? []).map((p) => {
+              const pImages = Array.isArray(p.images) ? p.images : [];
+              return (
               <tr key={p.id} className="hover:bg-[#F8F8F8]/60">
                 <td className="py-3 px-4">
                   <input
@@ -252,7 +258,7 @@ export default function AdminProducts() {
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-3">
                     <SafeImage
-                      src={p.images[0]}
+                      src={pImages[0]}
                       alt={p.title}
                       className="w-11 h-9 rounded border border-[#E8E8E8] shrink-0"
                     />
@@ -336,7 +342,8 @@ export default function AdminProducts() {
                   </div>
                 </td>
               </tr>
-            ))
+              );
+            })
             )}
           </tbody>
         </table>

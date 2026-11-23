@@ -34,15 +34,17 @@ async function getCurrentSupabaseUserId(): Promise<string> {
 }
 
 async function hydrateSupabaseOrders(rawOrders: Array<Record<string, unknown>>): Promise<Order[]> {
-  if (rawOrders.length === 0) return [];
+  if (!Array.isArray(rawOrders) || rawOrders.length === 0) return [];
   const orderIds = rawOrders.map((o) => String(o.id));
-  const { data: itemsData } = await supabase
+  const { data: itemsData, error: itemsErr } = await supabase
     .from('order_items')
     .select('*')
     .in('order_id', orderIds);
+  if (itemsErr) throw new Error(itemsErr.message);
 
+  const safeItems = Array.isArray(itemsData) ? (itemsData as OrderItem[]) : [];
   const itemsByOrder = new Map<string, OrderItem[]>();
-  for (const raw of (itemsData ?? []) as OrderItem[]) {
+  for (const raw of safeItems) {
     const oid = String(raw.order_id);
     const list = itemsByOrder.get(oid) ?? [];
     list.push({
@@ -257,10 +259,11 @@ export async function getUserOrders(): Promise<Order[]> {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return hydrateSupabaseOrders((data ?? []) as Array<Record<string, unknown>>);
+    return hydrateSupabaseOrders((Array.isArray(data) ? data : []) as Array<Record<string, unknown>>);
   }
 
-  return apiRequest<Order[]>('/api/orders');
+  const data = await apiRequest<Order[]>('/api/orders');
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getOrderById(id: string): Promise<Order> {
@@ -276,7 +279,11 @@ export async function getOrderById(id: string): Promise<Order> {
     return hydrated;
   }
 
-  return apiRequest<Order>(`/api/orders/${encodeURIComponent(id)}`);
+  const res = await apiRequest<Order>(`/api/orders/${encodeURIComponent(id)}`);
+  return {
+    ...res,
+    items: Array.isArray(res?.items) ? res.items : [],
+  };
 }
 
 export async function cancelOrder(id: string, reason?: string): Promise<Order> {
@@ -388,10 +395,11 @@ export async function getAddresses(): Promise<Address[]> {
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as Address[];
+    return Array.isArray(data) ? (data as Address[]) : [];
   }
 
-  return apiRequest<Address[]>('/api/addresses');
+  const data = await apiRequest<Address[]>('/api/addresses');
+  return Array.isArray(data) ? data : [];
 }
 
 export async function createAddress(

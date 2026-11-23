@@ -93,15 +93,18 @@ export default function AdminBusinesses() {
   const [imageUrl, setImageUrl] = useState(PRELOADED_BUSINESS_IMAGES[0].url);
   const [isActive, setIsActive] = useState(true);
 
-  const { data: businesses = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawBusinesses = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'businesses'],
     queryFn: adminService.getBusinesses,
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: rawCategories = [] } = useQuery({
     queryKey: ['admin', 'categories'],
     queryFn: adminService.getCategories,
   });
+
+  const businesses = Array.isArray(rawBusinesses) ? rawBusinesses : [];
+  const categories = Array.isArray(rawCategories) ? rawCategories : [];
 
   const filtered = useMemo(() => {
     return businesses.filter((b) => {
@@ -263,7 +266,7 @@ export default function AdminBusinesses() {
           className="h-10 px-3 rounded-lg border border-[#E8E8E8] bg-white text-sm"
         >
           <option value="">All Categories</option>
-          {categories.map((c) => (
+          {(categories ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -278,7 +281,7 @@ export default function AdminBusinesses() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map((biz) => (
+          {(filtered ?? []).map((biz) => (
             <article
               key={biz.id}
               className="bg-white border border-[#E8E8E8] rounded-xl overflow-hidden flex flex-col"
@@ -424,7 +427,7 @@ export default function AdminBusinesses() {
                     className="w-full h-10 px-3 rounded-lg border border-[#E8E8E8] bg-white text-sm"
                   >
                     <option value="">General Marketplace</option>
-                    {categories.map((c) => (
+                    {(categories ?? []).map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>

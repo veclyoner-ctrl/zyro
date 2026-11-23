@@ -38,15 +38,17 @@ export function Navbar() {
   const navigate = useNavigate();
 
   const storeName = settings.store_name || 'Zyro Mall';
-  const { data: categories = [] } = useQuery({
+  const { data: categoriesRaw = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   });
-  const { data: userOrders = [] } = useQuery({
+  const { data: userOrdersRaw = [] } = useQuery({
     queryKey: ['orders', user?.id],
     queryFn: getUserOrders,
     enabled: Boolean(user),
   });
+  const categories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
+  const userOrders = Array.isArray(userOrdersRaw) ? userOrdersRaw : [];
   const activeOrdersCount = userOrders.filter(
     (o) => o.status !== 'delivered' && o.status !== 'cancelled'
   ).length;
@@ -90,7 +92,7 @@ export function Navbar() {
     const timer = window.setTimeout(async () => {
       try {
         const res = await getProducts({ search: trimmed }, 1, 5);
-        setSuggestions(res.items);
+        setSuggestions(Array.isArray(res?.items) ? res.items : []);
       } catch {
         setSuggestions([]);
       }
@@ -163,7 +165,7 @@ export function Navbar() {
           className="hidden lg:flex items-center gap-6 text-sm font-medium text-[#6B7280]"
           aria-label="Main navigation"
         >
-          {navLinks.map((item) => (
+          {(navLinks ?? []).map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -191,9 +193,9 @@ export function Navbar() {
             />
           </form>
 
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && Array.isArray(suggestions) && suggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E8E8E8] rounded-xl shadow-lg overflow-hidden z-50">
-              {suggestions.map((item) => (
+              {(suggestions ?? []).map((item) => (
                 <Link
                   key={item.id}
                   to={`/products/${item.slug}`}
@@ -405,7 +407,7 @@ export function Navbar() {
               </button>
             </div>
             <nav className="py-4 flex flex-col gap-1" aria-label="Mobile navigation">
-              {navLinks.map((item) => (
+              {(navLinks ?? []).map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}

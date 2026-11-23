@@ -43,10 +43,17 @@ export class ErrorBoundary extends React.Component<
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={() => this.setState({ hasError: false, message: '' })}
+                onClick={() => window.location.reload()}
                 className="px-4 py-2.5 rounded-lg bg-[#FF6B35] hover:bg-[#E55A26] text-white text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
+                Reload Page
+              </button>
+              <button
+                type="button"
+                onClick={() => this.setState({ hasError: false, message: '' })}
+                className="px-4 py-2.5 rounded-lg border border-[#E8E8E8] bg-white hover:bg-[#F8F8F8] text-sm font-semibold text-[#1A1A1A] cursor-pointer"
+              >
                 Try Again
               </button>
               <a

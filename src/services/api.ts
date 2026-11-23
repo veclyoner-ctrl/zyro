@@ -41,9 +41,24 @@ export async function apiRequest<T>(
     headers,
   });
 
-  const data = await res.json().catch(() => ({}));
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    if (!res.ok) {
+      throw new Error(`Request failed (${res.status})`);
+    }
+    throw new Error(
+      'Received non-JSON response from server. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are configured.'
+    );
+  }
+
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(data?.error || `Request failed (${res.status})`);
+    throw new Error(
+      (data as { error?: string } | null)?.error || `Request failed (${res.status})`
+    );
+  }
+  if (data === null) {
+    throw new Error('Empty JSON response from server.');
   }
   return data as T;
 }

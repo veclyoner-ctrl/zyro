@@ -71,10 +71,11 @@ export default function AdminBanners() {
     }
   }, [settings]);
 
-  const { data: banners = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawBanners = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'banners'],
     queryFn: adminService.getBanners,
   });
+  const banners = Array.isArray(rawBanners) ? rawBanners : [];
 
   function openCreateModal() {
     setEditingBanner(null);
@@ -329,7 +330,7 @@ export default function AdminBanners() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {banners.map((b) => (
+            {(banners ?? []).map((b) => (
               <div
                 key={b.id}
                 className="bg-white border border-[#E8E8E8] rounded-xl overflow-hidden flex flex-col"

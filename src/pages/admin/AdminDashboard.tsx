@@ -25,34 +25,48 @@ export default function AdminDashboard() {
   if (isLoading) return <SkeletonDashboard />;
   if (isError || !data) return <ErrorState onRetry={() => refetch()} />;
 
+  const stats = data.stats ?? {
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalCustomers: 0,
+    pendingOrders: 0,
+    todaySales: 0,
+    weekSales: 0,
+    monthSales: 0,
+    ordersByStatus: {},
+  };
+  const revenueChart = Array.isArray(data.revenueChart) ? data.revenueChart : [];
+  const lowStockProducts = Array.isArray(data.lowStockProducts) ? data.lowStockProducts : [];
+  const recentOrders = Array.isArray(data.recentOrders) ? data.recentOrders : [];
+
   const kpis = [
     {
       label: 'Total Revenue',
-      value: formatPrice(data.stats.totalRevenue),
-      sub: `Today ${formatPrice(data.stats.todaySales ?? 0)} · Month ${formatPrice(data.stats.monthSales ?? data.stats.totalRevenue)}`,
+      value: formatPrice(stats.totalRevenue ?? 0),
+      sub: `Today ${formatPrice(stats.todaySales ?? 0)} · Month ${formatPrice(stats.monthSales ?? stats.totalRevenue ?? 0)}`,
       icon: TrendingUp,
     },
     {
       label: 'Total Orders',
-      value: String(data.stats.totalOrders),
-      sub: `7-day sales: ${formatPrice(data.stats.weekSales ?? data.stats.totalRevenue)}`,
+      value: String(stats.totalOrders ?? 0),
+      sub: `7-day sales: ${formatPrice(stats.weekSales ?? stats.totalRevenue ?? 0)}`,
       icon: ShoppingBag,
     },
     {
       label: 'Customers',
-      value: String(data.stats.totalCustomers),
+      value: String(stats.totalCustomers ?? 0),
       sub: 'Registered accounts',
       icon: Users,
     },
     {
       label: 'Pending Orders',
-      value: String(data.stats.pendingOrders),
-      sub: `Delivered: ${data.stats.ordersByStatus?.delivered ?? 0} · Shipped: ${data.stats.ordersByStatus?.shipped ?? 0}`,
+      value: String(stats.pendingOrders ?? 0),
+      sub: `Delivered: ${stats.ordersByStatus?.delivered ?? 0} · Shipped: ${stats.ordersByStatus?.shipped ?? 0}`,
       icon: Package,
     },
   ];
 
-  const statusEntries = Object.entries(data.stats.ordersByStatus ?? {});
+  const statusEntries = Object.entries(stats.ordersByStatus ?? {});
 
   return (
     <div className="space-y-6">
@@ -117,7 +131,7 @@ export default function AdminDashboard() {
           </h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.revenueChart}>
+              <LineChart data={revenueChart}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E8" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6B7280' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} />
@@ -151,11 +165,11 @@ export default function AdminDashboard() {
               Manage
             </Link>
           </div>
-          {data.lowStockProducts.length === 0 ? (
+          {lowStockProducts.length === 0 ? (
             <p className="text-sm text-[#6B7280]">All active products are well stocked.</p>
           ) : (
             <div className="divide-y divide-[#E8E8E8]">
-              {data.lowStockProducts.map((p) => (
+              {lowStockProducts.map((p) => (
                 <div key={p.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <Link
@@ -203,11 +217,11 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8E8E8] text-sm">
-              {data.recentOrders.map((o) => (
+              {recentOrders.map((o) => (
                 <tr key={o.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3 px-4 font-mono text-xs font-semibold">{o.order_number}</td>
                   <td className="py-3 px-4 text-[#1A1A1A]">
-                    {o.customer_name || o.shipping_address.full_name}
+                    {o.customer_name || o.shipping_address?.full_name || 'Customer'}
                   </td>
                   <td className="py-3 px-4 text-[#6B7280]">{formatDate(o.created_at)}</td>
                   <td className="py-3 px-4 font-semibold tabular-nums">{formatPrice(o.total)}</td>

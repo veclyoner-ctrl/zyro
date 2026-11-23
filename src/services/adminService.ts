@@ -72,13 +72,21 @@ async function fetchSupabaseAdminProducts(): Promise<Product[]> {
     supabase.from('product_variants').select('*'),
   ]);
   if (prodsRes.error) throw new Error(prodsRes.error.message);
+  if (catsRes.error) throw new Error(catsRes.error.message);
+  if (bizRes.error) throw new Error(bizRes.error.message);
+  if (varsRes.error) throw new Error(varsRes.error.message);
+
+  const safeProds = Array.isArray(prodsRes.data) ? prodsRes.data : [];
+  const safeCats = Array.isArray(catsRes.data) ? catsRes.data : [];
+  const safeBiz = Array.isArray(bizRes.data) ? bizRes.data : [];
+  const safeVars = Array.isArray(varsRes.data) ? varsRes.data : [];
 
   const catMap = new Map(
-    (catsRes.data ?? []).map((c) => [String(c.id), { name: String(c.name), slug: String(c.slug) }])
+    safeCats.map((c) => [String(c.id), { name: String(c.name), slug: String(c.slug) }])
   );
-  const bizMap = new Map((bizRes.data ?? []).map((b) => [String(b.id), String(b.name)]));
+  const bizMap = new Map(safeBiz.map((b) => [String(b.id), String(b.name)]));
   const varsByProduct = new Map<string, ProductVariant[]>();
-  for (const v of varsRes.data ?? []) {
+  for (const v of safeVars) {
     const pid = String(v.product_id);
     const list = varsByProduct.get(pid) ?? [];
     list.push({
@@ -89,7 +97,7 @@ async function fetchSupabaseAdminProducts(): Promise<Product[]> {
     varsByProduct.set(pid, list);
   }
 
-  return (prodsRes.data ?? []).map((p) => {
+  return safeProds.map((p) => {
     const cat = p.category_id ? catMap.get(String(p.category_id)) : undefined;
     return {
       ...(p as Product),
@@ -111,9 +119,13 @@ async function fetchSupabaseAdminOrders(): Promise<Order[]> {
     supabase.from('order_items').select('*'),
   ]);
   if (ordersRes.error) throw new Error(ordersRes.error.message);
+  if (itemsRes.error) throw new Error(itemsRes.error.message);
+
+  const safeOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+  const safeItems = Array.isArray(itemsRes.data) ? (itemsRes.data as OrderItem[]) : [];
 
   const itemsByOrder = new Map<string, OrderItem[]>();
-  for (const it of (itemsRes.data ?? []) as OrderItem[]) {
+  for (const it of safeItems) {
     const list = itemsByOrder.get(String(it.order_id)) ?? [];
     list.push({
       ...it,
@@ -124,7 +136,7 @@ async function fetchSupabaseAdminOrders(): Promise<Order[]> {
     itemsByOrder.set(String(it.order_id), list);
   }
 
-  return (ordersRes.data ?? []).map((o) => ({
+  return safeOrders.map((o) => ({
     ...(o as Order),
     subtotal: Number(o.subtotal),
     shipping_cost: Number(o.shipping_cost),
@@ -135,6 +147,7 @@ async function fetchSupabaseAdminOrders(): Promise<Order[]> {
 }
 
 function buildRevenueSeries(orders: Order[], days = 30): Array<{ date: string; revenue: number }> {
+  const safeOrders = Array.isArray(orders) ? orders : [];
   const map = new Map<string, number>();
   const now = new Date();
   for (let i = days - 1; i >= 0; i--) {
@@ -142,7 +155,7 @@ function buildRevenueSeries(orders: Order[], days = 30): Array<{ date: string; r
     d.setDate(d.getDate() - i);
     map.set(d.toISOString().slice(0, 10), 0);
   }
-  for (const o of orders) {
+  for (const o of safeOrders) {
     if (o.status === 'cancelled') continue;
     const key = o.created_at.slice(0, 10);
     if (map.has(key)) {
@@ -154,7 +167,15 @@ function buildRevenueSeries(orders: Order[], days = 30): Array<{ date: string; r
 
 export const adminService = {
   getOverview: async (): Promise<AdminOverviewData> => {
-    if (!isSupabaseConfigured) return apiRequest<AdminOverviewData>('/api/admin/overview');
+    if (!isSupabaseConfigured) {
+      const res = await apiRequest<AdminOverviewData>('/api/admin/overview');
+      return {
+        ...res,
+        revenueChart: Array.isArray(res?.revenueChart) ? res.revenueChart : [],
+        recentOrders: Array.isArray(res?.recentOrders) ? res.recentOrders : [],
+        lowStockProducts: Array.isArray(res?.lowStockProducts) ? res.lowStockProducts : [],
+      };
+    }
 
     const [orders, products, profilesRes, settings] = await Promise.all([
       fetchSupabaseAdminOrders(),
@@ -162,6 +183,7 @@ export const adminService = {
       supabase.from('profiles').select('id').eq('role', 'customer'),
       getStoreSettings(),
     ]);
+    if (profilesRes.error) throw new Error(profilesRes.error.message);
 
     const nonCancelled = orders.filter((o) => o.status !== 'cancelled');
     const now = Date.now();
@@ -187,7 +209,7 @@ export const adminService = {
           .filter((o) => new Date(o.created_at).getTime() >= monthAgo)
           .reduce((s, o) => s + o.total, 0),
         totalOrders: orders.length,
-        totalCustomers: profilesRes.data?.length ?? 0,
+        totalCustomers: Array.isArray(profilesRes.data) ? profilesRes.data.length : 0,
         pendingOrders: orders.filter((o) => o.status === 'pending').length,
         ordersByStatus,
       },
@@ -200,7 +222,10 @@ export const adminService = {
   },
 
   getProducts: async (): Promise<Product[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Product[]>('/api/admin/products');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Product[]>('/api/admin/products');
+      return Array.isArray(data) ? data : [];
+    }
     return fetchSupabaseAdminProducts();
   },
 
@@ -326,17 +351,23 @@ export const adminService = {
   },
 
   getCategories: async (): Promise<Category[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Category[]>('/api/admin/categories');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Category[]>('/api/admin/categories');
+      return Array.isArray(data) ? data : [];
+    }
     const [catsRes, prodsRes] = await Promise.all([
       supabase.from('categories').select('*').order('sort_order', { ascending: true }),
       supabase.from('products').select('category_id').eq('is_deleted', false),
     ]);
     if (catsRes.error) throw new Error(catsRes.error.message);
+    if (prodsRes.error) throw new Error(prodsRes.error.message);
     const counts = new Map<string, number>();
-    for (const p of prodsRes.data ?? []) {
+    const safeProds = Array.isArray(prodsRes.data) ? prodsRes.data : [];
+    for (const p of safeProds) {
       if (p.category_id) counts.set(String(p.category_id), (counts.get(String(p.category_id)) ?? 0) + 1);
     }
-    return ((catsRes.data ?? []) as Category[]).map((c) => ({
+    const safeCats = Array.isArray(catsRes.data) ? (catsRes.data as Category[]) : [];
+    return safeCats.map((c) => ({
       ...c,
       product_count: counts.get(c.id) ?? 0,
     }));
@@ -394,7 +425,10 @@ export const adminService = {
   },
 
   getOrders: async (): Promise<Order[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Order[]>('/api/admin/orders');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Order[]>('/api/admin/orders');
+      return Array.isArray(data) ? data : [];
+    }
     return fetchSupabaseAdminOrders();
   },
 
@@ -423,14 +457,18 @@ export const adminService = {
   },
 
   getCustomers: async (): Promise<AdminCustomer[]> => {
-    if (!isSupabaseConfigured) return apiRequest<AdminCustomer[]>('/api/admin/customers');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<AdminCustomer[]>('/api/admin/customers');
+      return Array.isArray(data) ? data : [];
+    }
     const [profilesRes, orders] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       fetchSupabaseAdminOrders(),
     ]);
     if (profilesRes.error) throw new Error(profilesRes.error.message);
 
-    return ((profilesRes.data ?? []) as Profile[])
+    const safeProfiles = Array.isArray(profilesRes.data) ? (profilesRes.data as Profile[]) : [];
+    return safeProfiles
       .filter((p) => p.role !== 'admin')
       .map((p) => {
         const custOrders = orders.filter((o) => o.user_id === p.id);
@@ -448,20 +486,26 @@ export const adminService = {
     id: string
   ): Promise<{ customer: AdminCustomer; addresses: Address[]; orders: Order[] }> => {
     if (!isSupabaseConfigured) {
-      return apiRequest<{ customer: AdminCustomer; addresses: Address[]; orders: Order[] }>(
+      const res = await apiRequest<{ customer: AdminCustomer; addresses: Address[]; orders: Order[] }>(
         `/api/admin/customers/${encodeURIComponent(id)}`
       );
+      return {
+        customer: res.customer,
+        addresses: Array.isArray(res?.addresses) ? res.addresses : [],
+        orders: Array.isArray(res?.orders) ? res.orders : [],
+      };
     }
     const [customers, addrRes, orders] = await Promise.all([
       adminService.getCustomers(),
       supabase.from('addresses').select('*').eq('user_id', id),
       fetchSupabaseAdminOrders(),
     ]);
+    if (addrRes.error) throw new Error(addrRes.error.message);
     const customer = customers.find((c) => c.id === id);
     if (!customer) throw new Error('Customer not found');
     return {
       customer,
-      addresses: (addrRes.data ?? []) as Address[],
+      addresses: Array.isArray(addrRes.data) ? (addrRes.data as Address[]) : [],
       orders: orders.filter((o) => o.user_id === id),
     };
   },
@@ -484,13 +528,17 @@ export const adminService = {
   },
 
   getCoupons: async (): Promise<Coupon[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Coupon[]>('/api/admin/coupons');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Coupon[]>('/api/admin/coupons');
+      return Array.isArray(data) ? data : [];
+    }
     const { data, error } = await supabase
       .from('coupons')
       .select('*')
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return ((data ?? []) as Coupon[]).map((c) => ({
+    const safeCoupons = Array.isArray(data) ? (data as Coupon[]) : [];
+    return safeCoupons.map((c) => ({
       ...c,
       value: Number(c.value),
       min_order_amount: Number(c.min_order_amount),
@@ -547,13 +595,16 @@ export const adminService = {
   },
 
   getReviews: async (): Promise<Review[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Review[]>('/api/admin/reviews');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Review[]>('/api/admin/reviews');
+      return Array.isArray(data) ? data : [];
+    }
     const { data, error } = await supabase
       .from('reviews')
       .select('*')
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as Review[];
+    return Array.isArray(data) ? (data as Review[]) : [];
   },
 
   moderateReview: async (id: string, is_approved: boolean): Promise<Review> => {
@@ -585,13 +636,16 @@ export const adminService = {
   },
 
   getBanners: async (): Promise<Banner[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Banner[]>('/api/admin/banners');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Banner[]>('/api/admin/banners');
+      return Array.isArray(data) ? data : [];
+    }
     const { data, error } = await supabase
       .from('banners')
       .select('*')
       .order('sort_order', { ascending: true });
     if (error) throw new Error(error.message);
-    return (data ?? []) as Banner[];
+    return Array.isArray(data) ? (data as Banner[]) : [];
   },
 
   createBanner: async (data: Partial<Banner>): Promise<Banner> => {
@@ -665,19 +719,27 @@ export const adminService = {
   },
 
   getBusinesses: async (): Promise<Business[]> => {
-    if (!isSupabaseConfigured) return apiRequest<Business[]>('/api/admin/businesses');
+    if (!isSupabaseConfigured) {
+      const data = await apiRequest<Business[]>('/api/admin/businesses');
+      return Array.isArray(data) ? data : [];
+    }
     const [bizRes, catsRes, prodsRes] = await Promise.all([
       supabase.from('businesses').select('*').order('created_at', { ascending: false }),
       supabase.from('categories').select('id, name'),
       supabase.from('products').select('business_id').eq('is_deleted', false),
     ]);
     if (bizRes.error) throw new Error(bizRes.error.message);
-    const catMap = new Map((catsRes.data ?? []).map((c) => [String(c.id), String(c.name)]));
+    if (catsRes.error) throw new Error(catsRes.error.message);
+    if (prodsRes.error) throw new Error(prodsRes.error.message);
+    const safeCats = Array.isArray(catsRes.data) ? catsRes.data : [];
+    const safeProds = Array.isArray(prodsRes.data) ? prodsRes.data : [];
+    const safeBiz = Array.isArray(bizRes.data) ? (bizRes.data as Business[]) : [];
+    const catMap = new Map(safeCats.map((c) => [String(c.id), String(c.name)]));
     const counts = new Map<string, number>();
-    for (const p of prodsRes.data ?? []) {
+    for (const p of safeProds) {
       if (p.business_id) counts.set(String(p.business_id), (counts.get(String(p.business_id)) ?? 0) + 1);
     }
-    return ((bizRes.data ?? []) as Business[]).map((b) => ({
+    return safeBiz.map((b) => ({
       ...b,
       category_name: b.category_id ? catMap.get(b.category_id) : undefined,
       product_count: counts.get(b.id) ?? 0,
@@ -740,7 +802,13 @@ export const adminService = {
   },
 
   getDataQuality: async (): Promise<AdminDataQualityData> => {
-    if (!isSupabaseConfigured) return apiRequest<AdminDataQualityData>('/api/admin/data-quality');
+    if (!isSupabaseConfigured) {
+      const res = await apiRequest<AdminDataQualityData>('/api/admin/data-quality');
+      return {
+        ...res,
+        issues: Array.isArray(res?.issues) ? res.issues : [],
+      };
+    }
     const [products, categories, businesses, banners, settings] = await Promise.all([
       fetchSupabaseAdminProducts(),
       adminService.getCategories(),
@@ -770,7 +838,13 @@ export const adminService = {
       if (from) params.set('from', from);
       if (to) params.set('to', to);
       const qs = params.toString();
-      return apiRequest<AdminReportsData>(`/api/admin/reports${qs ? `?${qs}` : ''}`);
+      const res = await apiRequest<AdminReportsData>(`/api/admin/reports${qs ? `?${qs}` : ''}`);
+      return {
+        orders: Array.isArray(res?.orders) ? res.orders : [],
+        statusBreakdown: Array.isArray(res?.statusBreakdown) ? res.statusBreakdown : [],
+        bestSellers: Array.isArray(res?.bestSellers) ? res.bestSellers : [],
+        revenueSeries: Array.isArray(res?.revenueSeries) ? res.revenueSeries : [],
+      };
     }
 
     const allOrders = await fetchSupabaseAdminOrders();

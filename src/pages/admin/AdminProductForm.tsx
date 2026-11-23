@@ -15,21 +15,25 @@ export default function AdminProductForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: categories = [] } = useQuery({
+  const { data: rawCategories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   });
 
-  const { data: businesses = [] } = useQuery({
+  const { data: rawBusinesses = [] } = useQuery({
     queryKey: ['admin', 'businesses'],
     queryFn: adminService.getBusinesses,
   });
 
-  const { data: allProducts = [] } = useQuery({
+  const { data: rawAllProducts = [] } = useQuery({
     queryKey: ['admin', 'products'],
     queryFn: adminService.getProducts,
     enabled: isEdit,
   });
+
+  const categories = Array.isArray(rawCategories) ? rawCategories : [];
+  const businesses = Array.isArray(rawBusinesses) ? rawBusinesses : [];
+  const allProducts = Array.isArray(rawAllProducts) ? rawAllProducts : [];
 
   const [title, setTitle] = useState('');
   const [sku, setSku] = useState('');
@@ -63,8 +67,12 @@ export default function AdminProductForm() {
       setStockQuantity(String(found.stock_quantity));
       setStatus(found.status);
       setIsFeatured(Boolean(found.is_featured));
-      setImages(found.images);
-      setVariants(found.variants || []);
+      setImages(
+        Array.isArray(found.images) && found.images.length > 0
+          ? found.images
+          : ['/src/assets/images/prod_headphones_1795178619261.jpg']
+      );
+      setVariants(Array.isArray(found.variants) ? found.variants : []);
     }
   }, [isEdit, id, allProducts]);
 
@@ -208,7 +216,7 @@ export default function AdminProductForm() {
               className="w-full h-11 px-3.5 rounded-lg border border-[#E8E8E8] bg-white text-sm"
             >
               <option value="">Select category...</option>
-              {categories.map((c) => (
+              {(categories ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -227,7 +235,7 @@ export default function AdminProductForm() {
               className="w-full h-11 px-3.5 rounded-lg border border-[#E8E8E8] bg-white text-sm"
             >
               <option value="">Zyro Mall Direct</option>
-              {businesses.map((b) => (
+              {(businesses ?? []).map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name} ({b.city})
                 </option>
@@ -322,7 +330,7 @@ export default function AdminProductForm() {
         <div className="pt-4 border-t border-[#E8E8E8] space-y-3">
           <p className="text-xs font-semibold text-[#1A1A1A]">Product Images (max 8)</p>
           <div className="flex flex-wrap gap-3">
-            {images.map((img, i) => (
+            {(images ?? []).map((img, i) => (
               <div key={i} className="relative w-24 h-20 rounded-lg overflow-hidden border border-[#E8E8E8]">
                 <SafeImage src={img} alt={`Preview ${i + 1}`} className="w-full h-full" />
                 <button
@@ -393,7 +401,7 @@ export default function AdminProductForm() {
               <Plus className="w-3.5 h-3.5" /> Add Variant
             </button>
           </div>
-          {variants.map((v, i) => (
+          {(variants ?? []).map((v, i) => (
             <div key={v.id} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-center">
               <input
                 type="text"

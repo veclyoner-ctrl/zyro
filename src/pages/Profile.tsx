@@ -43,16 +43,18 @@ export default function Profile() {
   const [editReviewComment, setEditReviewComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
 
-  const { data: addresses = [] } = useQuery({
+  const { data: addressesRaw = [] } = useQuery({
     queryKey: ['addresses'],
     queryFn: getAddresses,
   });
+  const addresses = Array.isArray(addressesRaw) ? addressesRaw : [];
 
-  const { data: reviews = [] } = useQuery({
+  const { data: reviewsRaw = [] } = useQuery({
     queryKey: ['user-reviews', user?.id],
     queryFn: () => getUserReviews(user!.id),
     enabled: Boolean(user?.id),
   });
+  const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
 
   async function handleSaveInfo(e: React.FormEvent) {
     e.preventDefault();
@@ -460,7 +462,7 @@ export default function Profile() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {addresses.map((addr) => (
+            {(addresses ?? []).map((addr) => (
               <div
                 key={addr.id}
                 className="bg-white border border-[#E8E8E8] rounded-xl p-5 flex flex-col justify-between"
@@ -536,7 +538,7 @@ export default function Profile() {
           {reviews.length === 0 ? (
             <p className="p-6 text-sm text-[#6B7280]">You have not written any reviews yet.</p>
           ) : (
-            reviews.map((rev) => (
+            (reviews ?? []).map((rev) => (
               <div key={rev.id} className="p-5">
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <p className="text-sm font-semibold text-[#1A1A1A]">

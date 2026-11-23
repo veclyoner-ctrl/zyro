@@ -15,22 +15,23 @@ export default function AdminOrders() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  const { data: orders = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawOrders = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'orders'],
     queryFn: adminService.getOrders,
   });
+  const orders = Array.isArray(rawOrders) ? rawOrders : [];
 
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       if (statusFilter && o.status !== statusFilter) return false;
       if (paymentFilter && o.payment_method !== paymentFilter) return false;
-      const orderDay = o.created_at.slice(0, 10);
+      const orderDay = (o.created_at ?? '').slice(0, 10);
       if (fromDate && orderDay < fromDate) return false;
       if (toDate && orderDay > toDate) return false;
       if (search.trim()) {
         const q = search.trim().toLowerCase();
-        const matchOrder = o.order_number.toLowerCase().includes(q);
-        const matchCust = (o.customer_name || o.shipping_address.full_name)
+        const matchOrder = (o.order_number ?? '').toLowerCase().includes(q);
+        const matchCust = (o.customer_name || o.shipping_address?.full_name || '')
           .toLowerCase()
           .includes(q);
         if (!matchOrder && !matchCust) return false;
@@ -135,10 +136,10 @@ export default function AdminOrders() {
                 </td>
               </tr>
             ) : (
-              filtered.map((o) => (
+              (filtered ?? []).map((o) => (
                 <tr key={o.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3 px-4 font-mono text-xs font-semibold">{o.order_number}</td>
-                  <td className="py-3 px-4">{o.customer_name || o.shipping_address.full_name}</td>
+                  <td className="py-3 px-4">{o.customer_name || o.shipping_address?.full_name || 'Customer'}</td>
                   <td className="py-3 px-4 text-[#6B7280]">{formatDate(o.created_at)}</td>
                   <td className="py-3 px-4 uppercase text-xs font-semibold">{o.payment_method}</td>
                   <td className="py-3 px-4">

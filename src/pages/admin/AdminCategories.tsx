@@ -20,10 +20,11 @@ export default function AdminCategories() {
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: categories = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawCategories = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'categories'],
     queryFn: adminService.getCategories,
   });
+  const categories = Array.isArray(rawCategories) ? rawCategories : [];
 
   function openNew() {
     setEditing(null);
@@ -119,7 +120,7 @@ export default function AdminCategories() {
                 </td>
               </tr>
             ) : (
-              categories.map((cat) => {
+              (categories ?? []).map((cat) => {
                 const parent = categories.find((c) => c.id === cat.parent_id);
                 return (
                   <tr key={cat.id} className="hover:bg-[#F8F8F8]/60">

@@ -24,16 +24,19 @@ async function fetchSupabaseWishlist(userId: string): Promise<WishlistItem[]> {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
-  if (error || !rawItems || rawItems.length === 0) return [];
+  if (error) throw new Error(error.message);
+  const safeRawItems = Array.isArray(rawItems) ? rawItems : [];
+  if (safeRawItems.length === 0) return [];
 
-  const productIds = Array.from(new Set(rawItems.map((i) => String(i.product_id))));
+  const productIds = Array.from(new Set(safeRawItems.map((i) => String(i.product_id))));
   const [productsRes, variantsRes] = await Promise.all([
     supabase.from('products').select('*').in('id', productIds),
     supabase.from('product_variants').select('*').in('product_id', productIds),
   ]);
 
   const variantsByProduct = new Map<string, ProductVariant[]>();
-  for (const v of variantsRes.data ?? []) {
+  const varList = Array.isArray(variantsRes.data) ? variantsRes.data : [];
+  for (const v of varList) {
     const pid = String(v.product_id);
     const list = variantsByProduct.get(pid) ?? [];
     list.push({
@@ -44,20 +47,22 @@ async function fetchSupabaseWishlist(userId: string): Promise<WishlistItem[]> {
     variantsByProduct.set(pid, list);
   }
 
+  const prodList = Array.isArray(productsRes.data) ? productsRes.data : [];
   const prodMap = new Map(
-    (productsRes.data ?? []).map((p) => [
+    prodList.map((p) => [
       String(p.id),
       {
         ...(p as Product),
         price: Number(p.price),
         sale_price: p.sale_price !== null ? Number(p.sale_price) : null,
         stock_quantity: Number(p.stock_quantity),
+        images: Array.isArray(p.images) ? p.images : [],
         variants: variantsByProduct.get(String(p.id)) ?? [],
       } as Product,
     ])
   );
 
-  return rawItems
+  return safeRawItems
     .map((wi) => {
       const product = prodMap.get(String(wi.product_id));
       if (!product || product.is_deleted) return null;
@@ -78,6 +83,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   const refreshWishlist = useCallback(async () => {
     if (!user) {
       setItems([]);
@@ -88,7 +95,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       const data = isSupabaseConfigured
         ? await fetchSupabaseWishlist(user.id)
         : await apiRequest<WishlistItem[]>('/api/wishlist');
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch {
       setItems([]);
     } finally {
@@ -101,8 +108,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }, [refreshWishlist]);
 
   const isWishlisted = useCallback(
-    (productId: string) => items.some((i) => i.product_id === productId),
-    [items]
+    (productId: string) => safeItems.some((i) => i.product_id === productId),
+    [safeItems]
   );
 
   const removeFromWishlist = useCallback(
@@ -162,9 +169,9 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   return (
     <WishlistContext.Provider
       value={{
-        items,
+        items: safeItems,
         isLoading,
-        wishlistCount: items.length,
+        wishlistCount: safeItems.length,
         isWishlisted,
         toggleWishlist,
         removeFromWishlist,

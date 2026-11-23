@@ -51,17 +51,22 @@ export default function ProductListing({ searchMode = false }: { searchMode?: bo
     [businessParam]
   );
 
-  const { data: categories = [] } = useQuery({
+  const { data: categoriesRaw = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   });
 
-  const { data: businesses = [] } = useQuery({
+  const { data: businessesRaw = [] } = useQuery({
     queryKey: ['businesses'],
     queryFn: getBusinesses,
   });
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const {
+    data = { items: [], total: 0, page: 1, perPage, totalPages: 1 },
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: [
       'products',
       {
@@ -91,6 +96,10 @@ export default function ProductListing({ searchMode = false }: { searchMode?: bo
         perPage
       ),
   });
+
+  const categories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
+  const businesses = Array.isArray(businessesRaw) ? businessesRaw : [];
+  const items = Array.isArray(data?.items) ? data.items : [];
 
   function updateParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams);
@@ -127,7 +136,7 @@ export default function ProductListing({ searchMode = false }: { searchMode?: bo
       <div>
         <h3 className="font-display text-sm font-semibold text-[#1A1A1A] mb-3">Categories</h3>
         <div className="space-y-2">
-          {categories.map((cat) => {
+          {(categories ?? []).map((cat) => {
             const checked = activeCategories.includes(cat.slug);
             return (
               <label key={cat.id} className="flex items-center gap-2.5 text-sm text-[#1A1A1A] cursor-pointer">
@@ -149,7 +158,7 @@ export default function ProductListing({ searchMode = false }: { searchMode?: bo
         <div className="pt-5 border-t border-[#E8E8E8]">
           <h3 className="font-display text-sm font-semibold text-[#1A1A1A] mb-3">Partner Businesses</h3>
           <div className="space-y-2">
-            {businesses.map((biz) => {
+            {(businesses ?? []).map((biz) => {
               const checked =
                 activeBusinesses.includes(biz.slug) || activeBusinesses.includes(biz.id);
               return (
@@ -347,7 +356,7 @@ export default function ProductListing({ searchMode = false }: { searchMode?: bo
                 <SkeletonCard key={i} />
               ))}
             </div>
-          ) : !data || data.items.length === 0 ? (
+          ) : items.length === 0 ? (
             <EmptyState
               icon={<Search className="w-6 h-6" />}
               title="No products found"
@@ -363,13 +372,13 @@ export default function ProductListing({ searchMode = false }: { searchMode?: bo
               transition={{ duration: 0.2 }}
               className="grid grid-cols-2 md:grid-cols-3 gap-4"
             >
-              {data.items.map((product) => (
+              {(items ?? []).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </motion.div>
           ) : (
             <div className="space-y-4">
-              {data.items.map((product) => {
+              {(items ?? []).map((product) => {
                 const effectivePrice = getEffectivePrice(product);
                 const discountPercent = getDiscountPercent(product.price, product.sale_price);
                 const outOfStock =

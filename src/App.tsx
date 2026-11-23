@@ -66,12 +66,12 @@ function AdminPage({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <ErrorBoundary>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
                 <Suspense fallback={<LoadingSpinner label="Loading Zyro Mall..." />}>
                   <Routes>
                   {/* Public Storefront Routes */}
@@ -378,12 +378,12 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
                 </Suspense>
-              </ErrorBoundary>
-              <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+                <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

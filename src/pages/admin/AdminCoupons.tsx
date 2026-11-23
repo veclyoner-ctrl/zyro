@@ -20,10 +20,11 @@ export default function AdminCoupons() {
   const [expiresAt, setExpiresAt] = useState('2027-12-31');
   const [saving, setSaving] = useState(false);
 
-  const { data: coupons = [], isLoading, isError, refetch } = useQuery({
+  const { data: rawCoupons = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['admin', 'coupons'],
     queryFn: adminService.getCoupons,
   });
+  const coupons = Array.isArray(rawCoupons) ? rawCoupons : [];
 
   function openCreateModal() {
     setEditingCoupon(null);
@@ -115,7 +116,7 @@ export default function AdminCoupons() {
                 </td>
               </tr>
             ) : (
-              coupons.map((c) => (
+              (coupons ?? []).map((c) => (
                 <tr key={c.id} className="hover:bg-[#F8F8F8]/60">
                   <td className="py-3 px-4 font-mono font-bold text-[#1A1A1A]">{c.code}</td>
                   <td className="py-3 px-4 tabular-nums">

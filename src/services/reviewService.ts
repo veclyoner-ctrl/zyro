@@ -11,10 +11,11 @@ export async function getProductReviews(productId: string): Promise<Review[]> {
       .eq('is_approved', true)
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as Review[];
+    return Array.isArray(data) ? (data as Review[]) : [];
   }
 
-  return apiRequest<Review[]>(`/api/reviews?productId=${encodeURIComponent(productId)}`);
+  const data = await apiRequest<Review[]>(`/api/reviews?productId=${encodeURIComponent(productId)}`);
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getUserReviews(userId: string): Promise<Review[]> {
@@ -25,10 +26,11 @@ export async function getUserReviews(userId: string): Promise<Review[]> {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as Review[];
+    return Array.isArray(data) ? (data as Review[]) : [];
   }
 
-  return apiRequest<Review[]>(`/api/reviews?userId=${encodeURIComponent(userId)}`);
+  const data = await apiRequest<Review[]>(`/api/reviews?userId=${encodeURIComponent(userId)}`);
+  return Array.isArray(data) ? data : [];
 }
 
 export async function checkReviewEligibility(productId: string): Promise<{
@@ -57,7 +59,8 @@ export async function checkReviewEligibility(productId: string): Promise<{
         .neq('status', 'cancelled'),
     ]);
 
-    const orderIds = (userOrders ?? []).map((o) => String(o.id));
+    const safeUserOrders = Array.isArray(userOrders) ? userOrders : [];
+    const orderIds = safeUserOrders.map((o) => String(o.id));
     let hasPurchased = false;
     if (orderIds.length > 0) {
       const { data: matchedItems } = await supabase
@@ -66,7 +69,7 @@ export async function checkReviewEligibility(productId: string): Promise<{
         .eq('product_id', productId)
         .in('order_id', orderIds)
         .limit(1);
-      hasPurchased = (matchedItems?.length ?? 0) > 0;
+      hasPurchased = Array.isArray(matchedItems) && matchedItems.length > 0;
     }
 
     return {
