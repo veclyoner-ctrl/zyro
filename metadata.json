@@ -1,0 +1,6 @@
+{
+  "name": "Zyro Mall",
+  "description": "Full-featured multi-category online e-commerce platform for Pakistan with PKR pricing, customer storefront, checkout, order tracking, and admin management dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
